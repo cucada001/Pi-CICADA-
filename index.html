@@ -6,31 +6,76 @@
   <title>PiMatch Escrow</title>
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: linear-gradient(135deg,#1a2a6c,#b21f1f,#fdbb2d); color:white; text-align:center; padding:20px;}
-    .card {background:rgba(255,255,255,0.1);border-radius:15px;padding:20px;margin:20px auto;width:90%;max-width:500px;}
-    button {background:#6a11cb;background:linear-gradient(315deg,#2575fc,#6a11cb);border:none;color:white;padding:10px 20px;margin:5px;border-radius:10px;cursor:pointer;}
-    button:hover {opacity:0.9;}
+    body {
+      font-family: Arial, sans-serif;
+      background: #0d1117;
+      color: #f0f6fc;
+      text-align: center;
+      padding: 20px;
+    }
+    .card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 15px auto;
+      max-width: 400px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
+    button {
+      background: linear-gradient(45deg,#6a11cb,#2575fc);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      margin-top: 10px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    input {
+      width: 90%;
+      padding: 8px;
+      margin: 5px 0;
+      border-radius: 6px;
+      border: 1px solid #444;
+      background: #161b22;
+      color: white;
+    }
+    pre {
+      text-align: left;
+      background: #161b22;
+      padding: 10px;
+      border-radius: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body>
   <h1>🚀 PiMatch Escrow (0.5%)</h1>
+
+  <!-- تسجيل الدخول -->
   <div class="card" id="auth">
     <h2>تسجيل الدخول</h2>
     <button onclick="login()">تسجيل الدخول عبر Pi</button>
     <p id="userStatus">غير مسجل</p>
   </div>
 
+  <!-- الدفع -->
   <div class="card" id="payment" style="display:none;">
     <h2>إنشاء دفعة</h2>
-    <input id="amount" type="number" placeholder="المبلغ بالـπ"><br><br>
-    <input id="memo" type="text" placeholder="الوصف"><br><br>
+    <input id="amount" type="number" placeholder="المبلغ (π)">
+    <input id="memo" type="text" placeholder="الوصف">
     <button onclick="createPayment()">💳 ادفع الآن</button>
     <pre id="log"></pre>
   </div>
 
+  <!-- الضمان -->
   <div class="card" id="escrow" style="display:none;">
     <h2>نظام الضمان Escrow</h2>
-    <input id="serviceAmount" type="number" placeholder="سعر الخدمة بالـπ"><br><br>
+    <input id="serviceAmount" type="number" placeholder="المبلغ للخدمة (π)">
     <button onclick="createEscrow()">🔒 إنشاء ضمان</button>
     <button onclick="releaseEscrow()">✅ إفراج</button>
     <p id="escrowStatus"></p>
@@ -39,41 +84,47 @@
 <script>
 const API_BASE = "/api";
 
-function log(msg){document.getElementById("log").innerText += msg+"\n";}
+function log(msg){
+  document.getElementById("log").innerText += msg + "\n";
+}
 
 async function login(){
   try {
     const scopes = ['payments'];
-    const user = await Pi.authenticate(scopes,onIncompletePaymentFound);
-    document.getElementById("userStatus").innerText = "مرحبًا، "+user.username;
-    document.getElementById("payment").style.display="block";
-    document.getElementById("escrow").style.display="block";
-  } catch(e){ log("خطأ تسجيل: "+e); }
+    const user = await Pi.authenticate(scopes, onIncompletePaymentFound);
+    document.getElementById("userStatus").innerText = "مرحباً " + user.username;
+    document.getElementById("payment").style.display = "block";
+    document.getElementById("escrow").style.display = "block";
+  } catch(e){ 
+    log("خطأ تسجيل: " + e); 
+  }
 }
 
-function onIncompletePaymentFound(p){log("دفعة غير مكتملة: "+JSON.stringify(p));}
+function onIncompletePaymentFound(payment){
+  log("دفعة غير مكتملة: " + JSON.stringify(payment));
+}
 
 async function createPayment(){
-  const amount=document.getElementById("amount").value;
-  const memo=document.getElementById("memo").value;
-  Pi.createPayment({amount,memo,metadata:{note:memo}},{
-    onReadyForServerApproval: (paymentId)=>{log("جاهز للموافقة "+paymentId); fetch(API_BASE+"/approve",{method:"POST",body:JSON.stringify({paymentId})});},
-    onReadyForServerCompletion:(paymentId,txid)=>{log("جاهز للإكمال "+txid); fetch(API_BASE+"/complete",{method:"POST",body:JSON.stringify({paymentId,txid})});},
-    onCancel:(p)=>log("تم الإلغاء"),
-    onError:(e)=>log("خطأ:"+e)
+  const amount = document.getElementById("amount").value;
+  const memo = document.getElementById("memo").value;
+  Pi.createPayment({ amount, memo, metadata: { note: memo } }, {
+    onReadyForServerApproval: (paymentId)=>{ log("جاهز لموافقة السيرفر: " + paymentId); },
+    onReadyForServerCompletion: (paymentId, txid)=>{ log("تم الدفع: " + txid); },
+    onCancel: (p)=>log("تم الإلغاء"),
+    onError: (e)=>log("خطأ: " + e)
   });
 }
 
 function createEscrow(){
-  const price=parseFloat(document.getElementById("serviceAmount").value);
-  const fee=price*0.005;
-  const net=price-fee;
-  document.getElementById("escrowStatus").innerText=`تم إنشاء ضمان: السعر ${price}π | العمولة ${fee.toFixed(3)}π | الصافي ${net.toFixed(3)}π`;
-  fetch(API_BASE+"/escrow/create",{method:"POST",body:JSON.stringify({price,fee,net})});
+  const price = parseFloat(document.getElementById("serviceAmount").value);
+  const fee = price * 0.005;
+  const net = price - fee;
+  document.getElementById("escrowStatus").innerText = `🔒 ضمان ${price}π (صافي للمستلم: ${net}π بعد خصم ${fee}π)`;
+  fetch(API_BASE+"/escrow/create",{method:"POST",body:JSON.stringify({price})});
 }
 
 function releaseEscrow(){
-  document.getElementById("escrowStatus").innerText="✅ تم الإفراج عن الضمان";
+  document.getElementById("escrowStatus").innerText = "✅ تم الإفراج عن الضمان";
   fetch(API_BASE+"/escrow/release",{method:"POST"});
 }
 </script>

@@ -1,27 +1,22 @@
-const express = require('express');
-const bodyParser = require('body-parser');
+const express = require("express");
+const path = require("path");
+
 const app = express();
-app.use(bodyParser.json());
+const PORT = process.env.PORT || 3000;
 
-app.post('/api/approve',(req,res)=>{
-  console.log('Approve request:',req.body);
-  res.send({ok:true});
+// يخلي مجلد public متاح (لملفات html, css, js)
+app.use(express.static(path.join(__dirname, "public")));
+
+// لو فتحت الرابط الأساسي "/" يجيب index.html من public
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.post('/api/complete',(req,res)=>{
-  console.log('Complete request:',req.body);
-  res.send({ok:true});
+// صفحة تجريبية (ممكن تلغيها لو تبي)
+app.get("/api", (req, res) => {
+  res.json({ message: "Welcome to Pi-CICADA API 🚀" });
 });
 
-app.post('/api/escrow/create',(req,res)=>{
-  console.log('Escrow create:',req.body);
-  res.send({status:'escrow created'});
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
-
-app.post('/api/escrow/release',(req,res)=>{
-  console.log('Escrow release');
-  res.send({status:'released'});
-});
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT,()=>console.log('Server running on '+PORT));
